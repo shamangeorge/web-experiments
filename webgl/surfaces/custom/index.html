@@ -1,0 +1,40 @@
+<html>
+
+<head>
+    <title>Custom Noisy Surface</title>
+    <meta charset="utf-8">
+</head>
+
+<body>
+    <canvas id="canvas" style="border: none;" width="1024" height="768" tabindex="1"></canvas>
+    <script>
+    var elapsedTime = 0;
+    var frameCount = 0;
+    var lastTime = 0;
+
+    function drawScene() {
+
+        // draw scene here
+        var now = new Date().getTime();
+        frameCount++;
+        elapsedTime += (now - lastTime);
+        lastTime = now;
+        if (elapsedTime >= 1000) {
+            fps = frameCount;
+            frameCount = 0;
+            elapsedTime -= 1000;
+            document.getElementById('test').innerHTML = fps;
+        }
+        requestAnimationFrame(drawScene);
+    }
+    lastTime = new Date().getTime();
+    requestAnimationFrame(drawScene);
+    </script>
+    <div id="test"></div>
+    <script src="../js/utils.js" type="text/javascript"></script>
+    <script src="../js/gl-matrix.js" type="text/javascript"></script>
+    <script src="../js/webGLUtility.js" type="text/javascript"></script>
+    <script src="../js/vert_wave.js" type="text/javascript"></script>
+</body>
+
+</html>

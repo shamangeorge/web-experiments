@@ -1,0 +1,38 @@
+#ifdef GL_ES
+precision highp float;
+#endif
+uniform sampler2D samp, samphat, samphat1;
+varying vec2 tc;
+uniform float M, N;
+uniform int mode;
+uniform float dt;
+void main(void) {
+    vec2 v = texture2D(samp, tc).rg;
+    vec2 D = dt * vec2(v.r / M, v.g / N);
+    v = texture2D(samp, tc - D / 2.).rg;
+    D = dt * vec2(v.r / M, v.g / N);
+    vec2 tc1 = tc - D;
+    vec2 tcf = vec2(floor(tc1.r * M) / M, floor(tc1.g * N) / N);
+    vec4 maxValue = (texture2D(samp, tcf));
+    vec4 minValue = maxValue;
+    float d1 = 1. / M;
+    float d2 = 1. / N;
+    maxValue = max(maxValue, texture2D(samp, tcf + vec2(d1, 0.)));
+    maxValue = max(maxValue, texture2D(samp, tcf + vec2(0., d2)));
+    maxValue = max(maxValue, texture2D(samp, tcf + vec2(d1, d2)));
+    minValue = min(minValue, texture2D(samp, tcf + vec2(d1, 0.)));
+    minValue = min(minValue, texture2D(samp, tcf + vec2(0., d2)));
+    minValue = min(minValue, texture2D(samp, tcf + vec2(d1, d2)));
+    vec4 newValue = texture2D(samphat1, tc) + (texture2D(samp, tc) - texture2D(samphat, tc)) / 2.;
+    newValue = clamp(newValue, minValue, maxValue);
+    // vec4 newValue = texture2D(samp, tc1);	//only Semi-Lagrangian, for comparison
+
+    gl_FragColor = texture2D(samp, tc);
+    if (mode == 0) {
+        gl_FragColor.rgb = newValue.rgb;
+    } else if (mode == 1) {
+        gl_FragColor.rg = newValue.rg;
+    } else if (mode == 2) {
+        gl_FragColor.b = newValue.b;
+    }
+}

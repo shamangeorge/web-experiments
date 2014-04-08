@@ -1,0 +1,24 @@
+#ifdef GL_ES
+precision highp float;
+#endif
+uniform sampler2D samp;
+varying vec2 tc;
+uniform float M, N;
+uniform int mode;
+uniform float dt;
+void main(void) {
+    vec2 v = texture2D(samp, tc).rg;
+    vec2 D = dt * vec2(v.r / M, v.g / N);
+    v = texture2D(samp, tc - D / 2.).rg;
+    D = dt * vec2(v.r / M, v.g / N);
+    vec2 tc1 = tc - D;
+    // gl_FragColor = vec4( texture2D(samp, tc1).rg , texture2D(samp, tc).ba );
+    gl_FragColor = texture2D(samp, tc);
+    if (mode == 0) {
+        gl_FragColor.rgb = texture2D(samp, tc1).rgb;
+    } else if (mode == 1) {
+        gl_FragColor.rg = texture2D(samp, tc1).rg;
+    } else if (mode == 2) {
+        gl_FragColor.b = texture2D(samp, tc1).b;
+    }
+}

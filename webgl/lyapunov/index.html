@@ -1,0 +1,129 @@
+<!Doctype html>
+<html>
+
+<head>
+    <title>Lyapunov Fractals</title>
+    <meta charset=utf-8>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta http-equiv='Cache-Control' content='no-cache'>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="keywords" content="HTML5,CSS,JavaScript,WebGL,Fractals,Lyapunov,GPU">
+    <meta name="author" content="shamangeorge">
+    <link rel='shortcut icon' type='image/ico' href='content="https://shamangeorge.fruitopology.net/experiments/webgl/lyapunov/img/favicon.ico'>
+
+    <link rel='stylesheet' type='text/css' href='//fonts.googleapis.com/css?family=Balthazar'>
+    <link rel='stylesheet' type='text/css' href='//fonts.googleapis.com/css?family=Mountains+of+Christmas:400,700'>
+    <link rel='stylesheet' type='text/css' href='//fonts.googleapis.com/css?family=Droid+Sans:400,700'>
+    <link rel="stylesheet" type='text/css' href='./css/main.css'>
+
+    <script type="text/x-mathjax-config">
+    MathJax.Hub.Config({
+        tex2jax: {
+            inlineMath: [
+                ['$', '$'],
+                ['\\(', '\\)']
+            ]
+        }
+    });
+    </script>
+    <script type="text/javascript" src="//cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+    </script>
+    <script type="text/javascript" src="./js/webgl.js"></script>
+</head>
+
+<body>
+    <header>
+        <h1>Rendering Lyapunov Fractals on the GPU</h1>
+    </header>
+    <article>
+        <h3>From Wikipedia:</h3>
+        <p>
+        Markus–Lyapunov fractals are bifurcational fractals derived from an extension of the logistic map in which the degree of the growth of the population, $r$, periodically switches between two values $A$ and $B$.
+        </p>
+        <br>
+        <p>The fractal is constructed by mapping the regions of stability and chaotic behaviour (measured using the Lyapunov exponent $\lambda$) in the $a \times b$ plane for given periodic sequences of $a$ and $b$. In the images below, color corresponds to $\lambda < 0$ (stability), and black corresponds to $\lambda>0$ (chaos). Color Interpolation is used given the degree of stability.
+        </p>
+        <p>
+        The exponent $\lambda$ is defined as follows:
+        $$\lambda = \lim \limits_{N->\infty} \cdot \frac{1}{N} \sum \limits_{n=1}^{N} \log | \frac{dx_{n+1}}{dx_{n}} | \Rightarrow$$
+        $$\lambda = \lim \limits_{N->\infty} \cdot \frac{1}{N} \sum \limits_{n=1}^{N} \log | r_n ( 1 - 2x_n ) |$$
+
+         The ranges used for Lyapunov fractals are typically within the region $[0,4]\times[0,4]$ and the exponents are defined as above. Yet peculiar results are obtained by changing the $\log$ function as long as there is some sort of periodicity.
+        </p>
+        <br>
+        <p>Use Google Chrome of Firefox, if you have Canary or Aurora even better. This is intensive on the pc</p>
+    </article>
+    <section id='zircon'>
+        <h3>Zircon City
+            <br>range: $[3.4, 4.0] \times [2.5, 3.4]$</h3>
+        <canvas id="zirconCity" width="600" height="600">Sorry your browser does not seem to support the canvas Element</canvas>
+    </section>
+    <br>
+    <br>
+    <br>
+    <section id='sim_log'>
+        <h3>Simple AB iteration Sequence
+            <br>range: $[0, 4] \times [0, 4]$</h3>
+            <p>This draw involves tan(x) in the computation of the exponent. This is technically not a lyapunov fractal</p>
+        <canvas id="simpleLog" width="600" height="600">Sorry your browser does not seem to support the canvas Element</canvas>
+    </section>
+    <br>
+    <br>
+    <br>
+    <section id='zirconFull'>
+        <h3>Land of Zircon <br>range: $[0, 4] \times [0, 4]$.</h3>
+        </h3>
+        <p>Notice the capital (Zircon City) close to the top right corner</p>
+        <canvas id="zircon_full" width="600" height="600">Sorry your browser does not seem to support the canvas Element</canvas>
+    </section>
+    <br>
+    <br>
+    <br>
+    <footer>
+        <h3>References and special thanks to</h3>
+        <ul>
+            <li><a target="_blank" href='http://en.wikipedia.org/wiki/Lyapunov_fractal'>Lyapunov Fractals</a> on Wikipedia
+            </li>
+            <li><a target="_blank" href='http://www.stanford.edu/class/ee363/lectures/lyap.pdf'>Lyapunov Notes pdf</a> from Stanford's Linear Dynamical Systems course
+            </li>
+            <li>
+                <a target="_blank" href='http://www.cmp.caltech.edu/~mcc/Chaos_Course/Lesson7/Lyapunov.pdf'>Lyapunov Notes pdf</a> from Caltech's Chaos Course
+            </li>
+            <li>
+                <a target="_blank" href='https://github.com/alankila'>AlanKila</a> on github
+            </li>
+            <li>
+                <a target="_blank" href='http://hypertextbook.com/chaos/44.shtml'>Elert, Glenn. "Lyapunov Space"</a> from the Chaos HyperTextBook
+            </li>
+            <li>
+                <a target="_blank" href='http://www.efg2.com/Lab/FractalsAndChaos/Lyapunov.htm'>EFG's Fractals and Chaos – Lyapunov Exponents</a> from EFG's computerlab
+            </li>
+        </ul>
+        <br>
+        <br>
+        <br>
+        <!--<h3>Todo:</h3>-->
+        <!--<ul>-->
+            <!--<li>Add Zoom-->
+            <!--</li>-->
+            <!--<li>Add range slider-->
+            <!--</li>-->
+            <!--<li>-->
+                <!--Add Color manipulation for chaos vs stability regions-->
+            <!--</li>-->
+            <!--<li>-->
+                <!--Add user defined "A", "B" string sequences and math functions-->
+            <!--</li>-->
+            <!--<li>-->
+                <!--Wrap GL in LightGL-->
+            <!--</li>-->
+        <!--</ul>-->
+    </footer>
+    <script>
+    zirconCity();
+    ab_tan();
+    zirconCityFull();
+    </script>
+</body>
+
+</html>

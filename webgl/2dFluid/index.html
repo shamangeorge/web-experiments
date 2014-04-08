@@ -1,0 +1,706 @@
+<!doctype html>
+<html>
+<meta charset="UTF-8" />
+
+<head>
+    <title>2d Fluid Demo</title>
+
+    <style type="text/css">
+    canvas {
+        border:1px solid black;
+    }
+    button {
+        width:80;
+    }
+    p {
+        margin: 0;
+    }
+    </style>
+    <script type="text/javascript">
+    var SHADERSCRIPTS = ['fs-default', 'fs-show', 'fs-normalize', 'fs-gravity', 'fs-update-particles', 'fs-div', 'fs-proj', 'fs-residue', 'fs-restrict', 'fs-smooth', 'fs-prolong', 'vs-particles', 'fs-particles'];
+
+    function getShader(gl, id) {
+        var type = id.substring(0, 2);
+        var str = readFile('./shaders/' + id);
+        console.log(str)
+        var shader;
+        if (type == "fs")
+            shader = gl.createShader(gl.FRAGMENT_SHADER);
+        else if (type == "vs")
+            shader = gl.createShader(gl.VERTEX_SHADER);
+        else return null;
+        gl.shaderSource(shader, str);
+        gl.compileShader(shader);
+        if (gl.getShaderParameter(shader, gl.COMPILE_STATUS) == 0)
+            alert(id + "\n" + gl.getShaderInfoLog(shader));
+        return shader;
+    }
+
+    function readFile(path) {
+        var request = new XMLHttpRequest();
+        request.open("GET", path, false);
+        request.send(null);
+        var returnValue = request.responseText;
+        return returnValue;
+    }
+
+    function getProgram(gl, vs_id, fs_id) {
+        var program = gl.createProgram();
+        gl.attachShader(program, getShader(gl, vs_id));
+        if (arguments.length == 3) {
+            gl.attachShader(program, getShader(gl, fs_id));
+        } else {
+            gl.attachShader(program, getShader(gl, "vs-default"));
+        }
+        gl.linkProgram(program);
+
+        return program;
+    }
+
+    function createTexture(gl, width, height, pixels) {
+        if (!gl.ntextures) {
+            gl.ntextures = 1;
+        } else {
+            gl.ntextures++;
+        }
+        var id = gl.ntextures - 1;
+
+        var texture = gl.createTexture();
+        gl.activeTexture(gl.TEXTURE0 + id);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        // gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+        if (!pixels) {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0,
+                gl.RGBA, gl.FLOAT, null);
+        } else {
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, width, height, 0,
+                gl.RGBA, gl.FLOAT, pixels);
+        }
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        texture.id = id;
+        texture.width = width;
+        texture.height = height;
+
+        return texture;
+    }
+
+    function textureFramebuffer(gl, texture) {
+        var fb = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
+            gl.TEXTURE_2D, texture, 0);
+        if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) != gl.FRAMEBUFFER_COMPLETE)
+            alert(err + "FLOAT as the color attachment to an FBO");
+
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        return fb;
+    }
+
+    function addFramebuffer(gl, texture) {
+        texture.fb = textureFramebuffer(gl, texture);
+    }
+
+    function setSampler(gl, prog, samp, texture) {
+        gl.useProgram(prog);
+        var sampLoc = gl.getUniformLocation(prog, samp);
+        gl.uniform1i(sampLoc, texture.id);
+    }
+
+    function render(gl, prog, src, tgt, uniforms) {
+        gl.useProgram(prog);
+        setSampler(gl, prog, "samp", src);
+
+        if (uniforms) {
+            for (var u in uniforms) {
+                gl.uniform1f(gl.getUniformLocation(prog, u), uniforms[u]);
+            }
+        }
+        if (!tgt) {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            l.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+        } else {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, tgt.fb);
+            gl.viewport(0, 0, tgt.width, tgt.height);
+        }
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.flush();
+    }
+
+    function DoubleTextures(gl, size) {
+        this.gl = gl;
+        this.size = size;
+        this.textures = new Array();
+        this.textures[0] = createTexture(gl, this.size, this.size);
+        this.textures[1] = createTexture(gl, this.size, this.size);
+        addFramebuffer(gl, this.textures[0]);
+        addFramebuffer(gl, this.textures[1]);
+        this.current = 0;
+        this.other = 1;
+
+        this.runProgram = function(prog) {
+            render(this.gl, prog, this.textures[this.current], this.textures[this.other]);
+
+            this.swap();
+        }
+
+        this.swap = function() {
+            this.current = this.other;
+            this.other = (this.other + 1) % 2;
+        }
+
+        this.show = function(prog) {
+            render(this.gl, prog, this.textures[this.current], null);
+        }
+
+        this.currentTexture = function() {
+            return this.textures[this.current];
+        }
+
+        this.otherTexture = function() {
+            return this.textures[this.other];
+        }
+
+        this.setSampler = function(prog, samp) {
+            if (samp === undefined) {
+                setSampler(this.gl, prog, "samp", this.textures[this.current]);
+            } else {
+                setSampler(this.gl, prog, samp, this.textures[this.current]);
+            }
+        }
+
+        this.bindFramebuffer = function() {
+            this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, this.textures[this.current].fb);
+        }
+    }
+
+    function Grid(gl, size) {
+        this.gl = gl;
+        this.size = size;
+
+        this._init = function() {
+            var gl = this.gl;
+            this.loadPrograms();
+
+            var buf_quad = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf_quad);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+            gl.useProgram(this.programs["default"]);
+            var aPosLoc = gl.getAttribLocation(this.programs["default"], "aPos");
+            gl.enableVertexAttribArray(aPosLoc);
+            gl.vertexAttribPointer(aPosLoc, 2, gl.FLOAT, gl.FALSE, 0, 0);
+
+            this.uvf = new DoubleTextures(gl, this.size); //u,v,fraction
+            this.saved_uvf = createTexture(gl, this.size, this.size);
+            addFramebuffer(gl, this.saved_uvf);
+            setSampler(gl, this.programs["update-particles"], "saved", this.saved_uvf);
+            this.rpf = new Array(); //multi levels of residue,pressure,fraction
+            this.rpf[0] = new DoubleTextures(gl, this.size);
+
+            this.levels = 1;
+            this.omega = 1;
+
+            this.setSpacing();
+        }
+
+        this.findDivergence = function() {
+            this.render("div", this.uvf.currentTexture(), this.rpf[0].currentTexture());
+        }
+
+        this.solvePressure = function() {
+            ////this problem is cell-centered. The pressure of air is considered negative. Take care of "smooth","residue","prolong"
+            if (this.levels > 1) {
+                for (var k = 0; k < this.iterations; k++) {
+                    this.setUniform1f("smooth", "omega", this.omega);
+                    for (var i = 0; i < this.levels - 1; i++) {
+                        this.setUniform1f("smooth", "h", 1 / (this.size >> i));
+                        this.setUniform1f("residue", "h", 1 / (this.size >> i));
+                        for (var j = 0; j < this.preiter; j++) {
+                            this.rpf[i].runProgram(this.programs["smooth"]);
+                        }
+                        this.rpf[i].runProgram(this.programs["residue"]);
+                        this.render("restrict", this.rpf[i].currentTexture(), this.rpf[i + 1].currentTexture());
+                    }
+
+                    this.setUniform1f("smooth", "omega", 1.0);
+                    this.setUniform1f("smooth", "h", 1 / (this.size >> (this.levels - 1)));
+                    for (var i = 0; i < this.topiter; i++) {
+                        this.rpf[this.levels - 1].runProgram(this.programs["smooth"]);
+                    }
+
+                    this.setUniform1f("smooth", "omega", this.omega);
+                    for (var i = this.levels - 2; i >= 0; i--) {
+                        this.setUniform1f("smooth", "h", 1 / (this.size >> i));
+                        this.setUniform1f("prolong", "h", 1 / (this.size >> i));
+                        this.rpf[i + 1].setSampler(this.programs["prolong"], "csamp");
+                        this.rpf[i].runProgram(this.programs["prolong"]);
+                        for (var j = 0; j < this.postiter; j++) {
+                            this.rpf[i].runProgram(this.programs["smooth"]);
+                        }
+                    }
+                }
+            } else {
+                this.setUniform1f("smooth", "omega", 1.0);
+                this.setUniform1f("smooth", "h", 1 / this.size);
+                for (var i = 0; i < this.iterations * this.topiter; i++) {
+                    this.rpf[0].runProgram(this.programs["smooth"]);
+                }
+            }
+        }
+
+        this.makeIncompressible = function() {
+            this.findDivergence();
+            this.solvePressure();
+            this.rpf[0].setSampler(this.programs["proj"], "psamp");
+            this.runProgram("proj");
+        }
+
+        this.loadPrograms = function() {
+            this.programs = [];
+            //var shaderscripts = document.querySelectorAll("script[type='x-shader/x-fragment']");
+            for (var i = 0; i < SHADERSCRIPTS.length; i++) {
+                var id = SHADERSCRIPTS[i].slice(3);
+                if (id != "particles") {
+                    this.programs[id] = getProgram(this.gl, SHADERSCRIPTS[i]);
+                }
+            }
+        }
+
+        this.render = function(prog, src, tgt, uniforms) {
+            render(this.gl, this.programs[prog], src, tgt, uniforms);
+        }
+
+        this.runProgram = function(prog) {
+            this.uvf.runProgram(this.programs[prog]);
+        }
+
+        this.saveVelocities = function() {
+            this.render("default", this.uvf.currentTexture(), this.saved_uvf);
+        }
+
+        this.setViscosity = function(a) {
+            this.setUniform1f("update-particles", "a", a);
+        }
+
+        this.setGravity = function(g) {
+            this.g = g;
+            this.setUniform1f("gravity", "gdt", this.g * this.dt);
+        }
+
+        this.setLevels = function(n) {
+            this.levels = n;
+            for (var i = 1; i < n; i++) {
+                this.rpf[i] = new DoubleTextures(this.gl, this.size >> i);
+            }
+        }
+
+        this.setSpacing = function() {
+            var h = 1 / this.size;
+            this.setUniform1f("div", "h", h);
+            this.setUniform1f("proj", "h", h);
+        }
+
+        this.setTimeStep = function(dt) {
+            this.dt = dt;
+            this.setUniform1f("gravity", "gdt", this.g * this.dt);
+            this.setUniform1f("update-particles", "dt", this.dt);
+        }
+
+        this.setUniform1f = function(p, uniform, value) {
+            var gl = this.gl;
+            var prog = this.programs[p];
+
+            gl.useProgram(prog);
+            gl.uniform1f(gl.getUniformLocation(prog, uniform), value);
+        }
+
+        this.show = function(fs) {
+            this.uvf.show(this.programs["show"]);
+        }
+
+        this._init();
+    }
+
+    function Particles(gl, size) {
+        this.gl = gl;
+        this.size = size;
+
+        this._init = function() {
+            var gl = this.gl;
+
+            var buf_particle = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf_particle);
+            var n = this.size;
+            var data = new Float32Array(2 * n * n);
+            for (var i = 0; i < n; i++) {
+                for (var j = 0; j < n; j++) {
+                    data.set([j / n + 1 / 2 / n, i / n + 1 / 2 / n], 2 * (n * i + j)); //j first, according to the texture order
+                }
+            }
+            gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+            var prog_particle = getProgram(gl, "vs-particles", "fs-particles");
+            gl.useProgram(prog_particle);
+            var aIdLoc = 1; //manully set attibute location, or these locations will conflict
+            gl.bindAttribLocation(prog_particle, aIdLoc, "aId");
+            gl.linkProgram(prog_particle);
+            gl.enableVertexAttribArray(aIdLoc);
+            gl.vertexAttribPointer(aIdLoc, 2, gl.FLOAT, gl.FALSE, 0, 0);
+            this.program = prog_particle;
+
+            this.textures = new DoubleTextures(gl, this.size);
+
+            gl.blendFunc(gl.ONE, gl.ONE);
+            this.length = 0; //number of particles
+        }
+
+        this.initPosVel = function(data) {
+            var gl = this.gl;
+
+            var fullsize = new Float32Array(4 * this.size * this.size);
+            if (data.length > fullsize.length) {
+                fullsize = data.subarray(0, fullsize.length);
+                this.length = fullsize.length / 4;
+            } else {
+                fullsize.set(data, 0);
+                this.length = data.length / 4;
+            }
+            gl.activeTexture(gl.TEXTURE0 + this.textures.currentTexture().id);
+            gl.bindTexture(gl.TEXTURE_2D, this.textures.currentTexture());
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, this.size, this.size, 0,
+                gl.RGBA, gl.FLOAT, fullsize);
+        }
+
+        this.show = function() {
+            var gl = this.gl;
+
+            gl.enable(gl.BLEND);
+
+            gl.useProgram(this.program);
+            this.textures.setSampler(this.program);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.POINTS, 0, this.length);
+            gl.flush();
+
+            gl.disable(gl.BLEND);
+        }
+
+        this.transferToGrid = function(grid) {
+            var gl = this.gl;
+
+            gl.enable(gl.BLEND);
+
+            gl.useProgram(this.program);
+            this.textures.setSampler(this.program);
+            grid.uvf.bindFramebuffer();
+            gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.POINTS, 0, this.length);
+            gl.flush();
+
+            gl.disable(gl.BLEND);
+
+            grid.runProgram("normalize");
+        }
+
+        this.updateFromGrid = function(grid) {
+            grid.uvf.setSampler(grid.programs["update-particles"], "grid");
+            grid.setUniform1f("update-particles", "h", 1 / this.size);
+            this.textures.runProgram(grid.programs["update-particles"]);
+        }
+
+        this._init();
+    }
+
+    function FLIPSimulation(gl, gsize, psize, material, parameters) {
+        this.gl = gl;
+        this.grid = new Grid(gl, gsize);
+        this.particles = new Particles(gl, psize);
+
+        this.material = material;
+        this.parameters = parameters;
+
+        this.grid.setGravity(material.gravity);
+        this.grid.setViscosity(material.viscosity);
+
+        this.grid.setTimeStep(parameters.timestep);
+        this.grid.iterations = parameters.iterations;
+        this.grid.setLevels(parameters.levels);
+        this.grid.preiter = parameters.preiter;
+        this.grid.postiter = parameters.postiter;
+        this.grid.topiter = parameters.topiter;
+        this.grid.omega = parameters.omega;
+
+        this.initParticles = function(data) {
+            var n = this.grid.size;
+            if (data.length != n * n) {
+                throw ("Incorrect data size!");
+            }
+
+            var sum = 0;
+            for (var i = 0; i < n * n; i++) {
+                if (data[i] > 0) {
+                    sum++;
+                }
+            }
+
+            var ppc = n * n / sum; //particles per grid cell
+            if (ppc >= 4) {
+                ppc = 4;
+            } else if (ppc >= 2) {
+                ppc = 2;
+            } else if (ppc >= 1) {
+                ppc = 1;
+            } else {
+                throw ("No enough space for particles!");
+            }
+            var pdata = new Float32Array(ppc * 4 * sum);
+            var q = 2 / n / 4;
+            var j = 0;
+            ////initialized with ppc particles per grid cell
+            ////4 particles per grid cell are recommended
+            if (ppc == 4) {
+                for (var i = 0; i < n * n; i++) {
+                    var x = (i % n - (n - 1) / 2) / n * 2;
+                    var y = (Math.floor(i / n) - (n - 1) / 2) / n * 2;
+                    if (data[i] > 0) {
+                        pdata.set([x + q, y + q, 0, 0], (ppc * j) * 4);
+                        pdata.set([x - q, y + q, 0, 0], (ppc * j + 1) * 4);
+                        pdata.set([x + q, y - q, 0, 0], (ppc * j + 2) * 4);
+                        pdata.set([x - q, y - q, 0, 0], (ppc * j + 3) * 4);
+                        j++;
+                    }
+                }
+            } else if (ppc == 2) {
+                for (var i = 0; i < n * n; i++) {
+                    var x = (i % n - (n - 1) / 2) / n * 2;
+                    var y = (Math.floor(i / n) - (n - 1) / 2) / n * 2;
+                    if (data[i] > 0) {
+                        pdata.set([x + q, y + q, 0, 0], (ppc * j) * 4);
+                        pdata.set([x - q, y - q, 0, 0], (ppc * j + 1) * 4);
+                        j++;
+                    }
+                }
+            } else if (ppc == 1) {
+                for (var i = 0; i < n * n; i++) {
+                    var x = (i % n - (n - 1) / 2) / n * 2;
+                    var y = (Math.floor(i / n) - (n - 1) / 2) / n * 2;
+                    if (data[i] > 0) {
+                        pdata.set([x, y, 0, 0], (ppc * j) * 4);
+                        j++;
+                    }
+                }
+            }
+
+            this.particles.initPosVel(pdata);
+            this.particles.transferToGrid(this.grid);
+        }
+
+        this.show = function() {
+            this.particles.show();
+            // this.grid.show();
+        }
+
+        this.step = function() {
+            this.particles.transferToGrid(this.grid);
+            this.grid.saveVelocities();
+            this.grid.runProgram("gravity");
+            this.grid.makeIncompressible();
+            this.particles.updateFromGrid(this.grid);
+
+            this.show();
+        }
+
+        this.startAnimation = function() {
+            if (this.running) {
+                return;
+            }
+            var self = this;
+            var frames = 0;
+            var t0 = Date.now();
+            this.running = requestAnimationFrame(stepMe);
+
+            function stepMe(timestamp) {
+                self.step();
+                frames++;
+                var t1 = Date.now();
+                if (t1 - t0 >= 1000) {
+                    document.getElementById("fps").innerHTML = "FPS:" + Math.round(frames * 1000 / (t1 - t0));
+                    t0 = t1;
+                    frames = 0;
+                    //  console.log('here')
+
+                    // fraction of liquid
+                    // var n = self.grid.size;
+                    // var pixels = new Uint8Array(4*n*n);
+                    // var gl = self.gl;
+                    // gl.readPixels(0, 0, n, n, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+                    // var sum = 0;
+                    // for (var i = 4*n*n-2 ; i >= 0; i -= 4) {
+                    //  sum += pixels[i];
+                    // }
+                    // console.log("fraction of liquid:" + sum/n/n/255);
+                }
+                requestAnimationFrame(stepMe);
+            }
+        }
+
+        this.stopAnimation = function() {
+            if (this.running) {
+                cancelAnimationFrame(this.running);
+                this.running = null;
+            }
+        }
+    }
+
+    function toggleAnimation() {
+        if (!sim.running) {
+            sim.startAnimation();
+            document.getElementById("toggle").innerHTML = "Pause";
+        } else {
+            sim.stopAnimation();
+            document.getElementById("toggle").innerHTML = "Continue";
+        }
+    }
+
+    function reset() {
+        var running = sim.running;
+        sim.stopAnimation();
+        sim.initParticles(initdata);
+        sim.show();
+
+        if (running) {
+            sim.startAnimation();
+        } else {
+            document.getElementById("toggle").innerHTML = "Start";
+        }
+    }
+
+    function textPixels(text, x, y, n) {
+        var c2d = document.createElement("canvas");
+        c2d.width = n;
+        c2d.height = n;
+        var frag = document.createDocumentFragment();
+        var body = document.getElementsByTagName("body")[0];
+        body.appendChild(c2d);
+        var context2d = c2d.getContext("2d");
+
+        var lines = text.split("\n");
+        var maxwidth = 0;
+        context2d.font = "10px Arial";
+        for (var i = 0; i < lines.length; i++) {
+            var mwidth = context2d.measureText(lines[i]).width;
+            if (mwidth > maxwidth) {
+                maxwidth = mwidth;
+            }
+        }
+        var fontsize = Math.floor(n / maxwidth) * 10;
+
+        context2d.font = String(fontsize) + "px Arial";
+        context2d.textAlign = "center";
+        context2d.textBaseline = "bottom";
+        context2d.strokeStyle = "blue";
+        context2d.fillStyle = "blue";
+        // Y coordinate is flipped to consist with WebGL
+        context2d.translate(0, n - 1);
+        context2d.scale(1, -1);
+        for (var i = 0; i < lines.length; i++) {
+            context2d.fillText(lines[i], x, y - (lines.length - 1 - i) * fontsize);
+        }
+
+        var textpixels = context2d.getImageData(0, 0, n, n);
+        body.removeChild(c2d);
+
+        return textpixels;
+    }
+
+    var sim;
+    var initdata;
+
+    function main() {
+        var t0 = Date.now();
+
+        var c = document.getElementById("c");
+        var gl = c.getContext("experimental-webgl");
+        if (!gl) alert("Can't get WebGL");
+        gl.getExtension("OES_texture_float");
+        gl.getExtension("OES_texture_float_linear");
+
+        var mat = new Object();
+        mat.gravity = -0.1;
+        mat.viscosity = 0.1; //viscosity-relative FLIP/PIC parameter, not viscosity itself
+        var para = new Object();
+        para.timestep = 1 / 60;
+        para.iterations = 3;
+        para.levels = 7; //levels of multigrid
+        para.preiter = 6; //pre-smoothing
+        para.postiter = 6; //post-smoothing
+        para.topiter = 100; //iterations on the top level of grid
+        para.omega = 0.8; //omega-damped Jacobi
+
+        var n = 512;
+        initdata = new Uint8Array(n * n);
+        var shape = window.location.search.substring(1);
+        if (shape == "text") {
+            var textpixels = textPixels("你好\nHELLO", n / 2, n * 0.9, n);
+        }
+        for (var i = 0; i < n * n; i++) {
+            var x = (i % n - (n - 1) / 2) / n * 2;
+            var y = (Math.floor(i / n) - (n - 1) / 2) / n * 2;
+            ////different shapes
+            ////Though any shape can be simulated, it is recommended that the area of the liquid is less than 1/4 of the area of the whole viewport (to keep 4 particles per cell).
+            var b;
+            switch (shape) {
+                case "droplet": //droplet
+                    b = x * x + y * y < 0.1 || y < -0.7;
+                    break;
+                case "still": //still water
+                    b = y < -0.5;
+                    break;
+                case "text": //still water
+                    var j = i % n;
+                    b = textpixels.data[4 * i + 2] > 0 || y < -0.8;
+                    break;
+                default: //break square
+                    b = x < 0 && y < 0;
+                    break;
+            }
+
+            if (b) {
+                initdata[i] = 1;
+            } else {
+                initdata[i] = 0;
+            }
+        }
+
+        sim = new FLIPSimulation(gl, n, n, mat, para); //size cannot be larger than the canvas
+        sim.initParticles(initdata);
+        sim.show();
+
+        console.log("Time of initialization: " + (Date.now() - t0) / 1000 + "s");
+    }
+    </script>
+</head>
+
+<body>
+    <canvas id="c" width="512" height="512"></canvas>
+    <br/>
+    <button id="toggle" onclick="toggleAnimation()">Start</button>
+    <button id="reset" onclick="reset()">Reset</button>
+    <p id="fps">FPS:NA</p>
+    <br/>
+    <footer>
+        <h3>References</h3>
+        <p>[1]<i>Y. Zhu, R. Bridson</i>: <a href="http://www-devel.cs.ubc.ca/~rbridson/docs/zhu-siggraph05-sandfluid.pdf">Animating sand as a fluid</a>.</p>
+        <p>[2]<i>Jos Stam</i>: <a href="http://www.dgp.toronto.edu/people/stam/reality/Research/pdf/GDC03.pdf">Real-Time Fluid Dynamics for Games</a>.</p>
+        <p>[3]<i>N. Chentanez, M. M&uuml;ller</i>: <a href="http://matthias-mueller-fischer.ch/publications/separatingBoundaries.pdf">A multigrid fluid pressure solver handling separating solid boundary conditions</a>.</p>
+        <p>[4]<i>https://github.com/wildabc</i></p>
+    </footer>
+    <script>
+    main();
+    </script>
+</body>
+
+</html>

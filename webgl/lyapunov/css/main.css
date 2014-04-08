@@ -1,0 +1,43 @@
+* {
+    padding:0;
+    margin:0;
+}
+body {
+    background-color: black;
+    color:white;
+    font-family:'Balthazar', serif;
+    text-align: center;
+}
+header {
+    margin:50px;
+}
+article {
+    margin-right: auto;
+    margin-left: auto;
+    width:700px;
+}
+footer {
+    margin:50px;
+    font-size:18px;
+}
+a {
+    color:orange;
+}
+a:hover {
+    color:orange;
+}
+a:visited {
+    color:orange;
+}
+footer ul {
+    list-style-type: none;
+}
+section {
+    width:700px;
+    margin:10px;
+    margin-right: auto;
+    margin-left: auto;
+}
+section h3, section p {
+    padding:10px;
+}

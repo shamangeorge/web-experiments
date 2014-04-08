@@ -1,0 +1,27 @@
+#ifdef GL_ES
+	precision highp float;
+#endif
+uniform sampler2D samp;
+uniform float h;
+varying vec2 tc;
+void main(void) {
+	float u = texture2D(samp, tc).r;
+	float v = texture2D(samp, tc).g;
+
+	//extrapolate the velocity
+	float ul = tc.r>h ? texture2D(samp, vec2(tc.r-h,tc.g)).r : -u;
+	float ur = tc.r<1.-h ? texture2D(samp, vec2(tc.r+h,tc.g)).r : -u;
+	float vd = tc.g>h ? texture2D(samp, vec2(tc.r,tc.g-h)).g : -v;
+	float vu = tc.g<1.-h ? texture2D(samp, vec2(tc.r,tc.g+h)).g : -v;
+
+	//the air moves with the liquid
+	ul = texture2D(samp,vec2(tc.r-h,tc.g)).b>0. ? ul : u;
+	ur = texture2D(samp,vec2(tc.r+h,tc.g)).b>0. ? ur : u;
+	vd = texture2D(samp,vec2(tc.r,tc.g-h)).b>0. ? vd : v;
+	vu = texture2D(samp,vec2(tc.r,tc.g+h)).b>0. ? vu : v;
+
+	if(texture2D(samp,tc).b>0.){
+		gl_FragColor.b = 1.;
+		gl_FragColor.r = 0.5*(ur-ul+vu-vd);
+	}
+}

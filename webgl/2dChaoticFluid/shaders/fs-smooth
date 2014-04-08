@@ -1,0 +1,41 @@
+#ifdef GL_ES
+	precision highp float;
+#endif
+uniform sampler2D samp;
+uniform float h;
+varying vec2 tc;
+
+uniform float omega;	//omega-damped
+
+float residue(){	//same function in "residue"
+	float f = texture2D(samp,tc).b;
+	if(f == 0.){
+		return 0.;
+	}
+
+	//is this approximation correct?
+	float pc = texture2D(samp,tc).g;
+	float c;
+	c = max(0., f-texture2D(samp, vec2(tc.r-h,tc.g)).b)/f;
+	float pl = (1.-c)*texture2D(samp, vec2(tc.r-h,tc.g)).g-c*pc;
+	c = max(0., f-texture2D(samp, vec2(tc.r+h,tc.g)).b)/f;
+	float pr = (1.-c)*texture2D(samp, vec2(tc.r+h,tc.g)).g-c*pc;
+	c = max(0., f-texture2D(samp, vec2(tc.r,tc.g-h)).b)/f;
+	float pd = (1.-c)*texture2D(samp, vec2(tc.r,tc.g-h)).g-c*pc;
+	c = max(0., f-texture2D(samp, vec2(tc.r,tc.g+h)).b)/f;
+	float pu = (1.-c)*texture2D(samp, vec2(tc.r,tc.g+h)).g-c*pc;
+
+	return texture2D(samp,tc).r-(pl+pr+pd+pu-4.*pc);
+}
+
+void main(void) {
+	gl_FragColor = texture2D(samp,tc);
+	if(gl_FragColor.b == 0.){
+	// if(gl_FragColor.b < 1.){
+		gl_FragColor.g = 0.;
+		return;
+	}
+
+	gl_FragColor.g -= omega*residue()/4.;
+	gl_FragColor.g = max(0.,gl_FragColor.g);
+}

@@ -1,0 +1,204 @@
+<!Doctype html>
+<html>
+
+<head>
+    <title>EMST's</title>
+    <script src="//d3js.org/d3.v3.min.js" charset="utf-8"></script>
+    <style>
+    body {
+        background-color: lightgray;
+        text-align: center;
+    }
+    </style>
+</head>
+
+<body>
+    <h1>Average Weight of Euclidean Minimal Spanning Trees</h1>
+
+    <script>
+    var width = window.innerWidth - 200;
+    var height = window.innerHeight - 200;
+    var data = []; // a global
+    var arrayOfArrays = [
+        [],
+        [],
+        [],
+        []
+    ];
+    var remaining = 3;
+    for (var k = 0; k < 5; k++) {
+        if (k != 1) {
+            var filePath = "128NBOR/stats-full_dim" + k + ".json";
+            d3.json(filePath, function(error, json) {
+                if (error) {
+                    return console.error(error.message);
+                }
+                data.push(json);
+                if (!remaining--)
+                    visualizeit();
+            });
+        }
+    }
+
+    function visualizeit() {
+        var w = width;
+        var h = height;
+        var svg = d3.select("body")
+            .append("svg")
+            .attr("width", w)
+            .attr("height", h)
+
+        var sampleSize = size(data[0]);
+        for (var i = 0; i < sampleSize; i++) {
+            arrayOfArrays[0].push(data[0][i + 4]);
+        }
+        var array = arrayOfArrays[0];
+
+        var x = d3.scale.linear()
+            .range([0, w]);
+
+        var runTimeScale = d3.scale.linear()
+            .range([.9, 1.5])
+            .domain(d3.extent(arrayOfArrays[0], function(d) {
+                return d[3];
+            }));
+
+        var y = d3.scale.linear()
+            .range([h, 0]);
+
+        var xAxis = d3.svg.axis()
+            .scale(x)
+            .orient("bottom");
+
+        var yAxis = d3.svg.axis()
+            .scale(y)
+            .orient("left");
+
+        x.domain(d3.extent(array, function(d) {
+            return d[5];
+        }));
+        y.domain([0, 1.3]);
+
+        var scaleX = x;
+        var scaleY = y;
+        svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + (0 - 5) + ")")
+            .call(xAxis)
+            .append("text")
+            .attr("x", 150)
+            .attr("y", 25)
+            .attr("dy", ".71em")
+            .style("text-anchor", "end")
+            .text("Graph Vertex Number");
+
+        svg.append("svg:line")
+            .attr("x1", 0)
+            .attr("y1", scaleY(1.2020569031595942854))
+            .attr("x2", width)
+            .attr("y2", scaleY(1.2020569031595942854))
+            .style("stroke-width", 2)
+            .style("stroke", "rgb(6,120,155)");
+        svg.append("svg:text")
+            .text("Apery's constant")
+            .attr("x", 170)
+            .attr("y", scaleY(1.2020569031595942854) - 5)
+            .attr("font-size", "20px")
+            .attr("fill", "rgb(6,120,155)");
+
+        svg.append("g")
+            .attr("class", "y axis")
+            .call(yAxis)
+            .attr("transform", "translate(" + 1 + ", 0)")
+            .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", 6)
+            .attr("x", -h + 200)
+            .attr("dy", ".71em")
+            .style("text-anchor", "end")
+            .text("MST average weight");
+
+        svg.selectAll("circle")
+            .data(arrayOfArrays[0])
+            .enter()
+            .append("circle")
+            .attr("cx", function(d, i) {
+                return scaleX(d[5]);
+            })
+            .attr("cy", function(d, i) {
+                return scaleY(d[1]);
+            })
+            .attr("r", function(d, i) {
+                return runTimeScale(d[3]);
+            });
+
+        svg.append("rect")
+            .attr("x", width - 120)
+            .attr("y", 150)
+            .attr("width", 15)
+            .attr("height", 15)
+            .attr("fill", "black")
+            .attr("stroke", "black")
+        svg.append("text")
+            .text('Dimension ' + arrayOfArrays[0][0][7])
+            .attr('x', width - 100)
+            .attr('y', 150 + 12)
+            .attr('fill', "black")
+
+        genDataRoutine(svg, arrayOfArrays, 1, "green", scaleX, scaleY); //dim 2
+        genDataRoutine(svg, arrayOfArrays, 2, "red", scaleX, scaleY); // dim 3
+        genDataRoutine(svg, arrayOfArrays, 3, "yellow", scaleX, scaleY); // dim 4
+    }
+
+    function genDataRoutine(svg, arrayOfArrays, num, color, scaleX, scaleY) {
+        for (var i = 0; i < size(data[num]); i++) {
+            arrayOfArrays[num].push(data[num][i + 4]);
+        }
+
+        runTimeScale = d3.scale.linear()
+            .range([.9, 1.5])
+            .domain(d3.extent(arrayOfArrays[num], function(d) {
+                return d[3];
+            }));
+
+        svg.selectAll("circle" + num)
+            .data(arrayOfArrays[num])
+            .enter()
+            .append("circle")
+            .attr("cx", function(d, i) {
+                return scaleX(d[5]);
+            })
+            .attr("cy", function(d, i) {
+                return scaleY(d[1]);
+            })
+            .attr("r", function(d, i) {
+                return runTimeScale(d[3]);
+            })
+            .attr("fill", color);
+
+        svg.append("rect")
+            .attr("x", width - 120)
+            .attr("y", (num + 1) * 150)
+            .attr("width", 15)
+            .attr("height", 15)
+            .attr("fill", color)
+            .attr("stroke", "black")
+        svg.append("text")
+            .text('Dimension ' + arrayOfArrays[num][0][7])
+            .attr('x', width - 100)
+            .attr('y', (num + 1) * 150 + 12)
+            .attr('fill', color)
+    }
+
+    function size(obj) {
+        var size = 0,
+            key;
+        for (key in obj) {
+            if (obj.hasOwnProperty(key)) size++;
+        }
+        return size;
+    };
+    </script>
+</body>
+
+</html>

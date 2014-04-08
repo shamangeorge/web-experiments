@@ -1,0 +1,60 @@
+#ifdef GL_ES
+precision highp float;
+#endif
+
+uniform sampler2D samp;
+uniform sampler2D W_M;
+uniform sampler2D W_N;
+
+varying vec2 tc;
+uniform float M, N;
+float h1 = 1. / M;
+float h2 = 1. / N;
+uniform float iter, sign, dim;
+float psize = exp2(iter); //size of a partition
+
+// const float PI = 3.1415926535897;
+// vec2 W(float i,float n){
+// 	float a = 2.*sign*PI*i/n;
+// 	return vec2(cos(a),sin(a));
+// }
+
+vec2 WM(float k) {
+    return texture2D(W_M, vec2(sign * k / psize + .5 * h1, .5)).rg;
+}
+
+vec2 WN(float l) {
+    return texture2D(W_N, vec2(sign * l / psize + .5 * h2, .5)).rg;
+}
+
+vec2 complexProd(vec2 x, vec2 y) {
+    return vec2(x.r * y.r - x.g * y.g, x.r * y.g + x.g * y.r);
+}
+
+void main(void) {
+    if (dim == 0.0) {
+        float u = floor(tc.r * psize);
+        vec2 t1, t2;
+        float idx = tc.r + u / psize;
+        t1 = texture2D(samp, vec2(idx, tc.g)).rg;
+        t2 = texture2D(samp, vec2(idx + 1. / psize, tc.g)).rg;
+        // gl_FragColor.rg = t1.rg+complexProd(W(u,psize),t2.rg);
+        gl_FragColor.rg = t1 + complexProd(WM(u), t2);
+        // if(sign == 1. && iter == 1.){
+        // 	gl_FragColor.rg = gl_FragColor.rg/M;
+        // }
+    } else {
+        float u = floor(tc.g * psize);
+        vec2 t1, t2;
+        float idx = tc.g + u / psize;
+        t1 = texture2D(samp, vec2(tc.r, idx)).rg;
+        t2 = texture2D(samp, vec2(tc.r, idx + 1. / psize)).rg;
+        // gl_FragColor.rg = t1.rg+complexProd(W(u,psize),t2.rg);
+        gl_FragColor.rg = t1 + complexProd(WN(u), t2);
+        // if(sign == 1. && iter == 1.){
+        // 	gl_FragColor.rg = gl_FragColor.rg/N;
+        // }
+    }
+
+    gl_FragColor.ba = texture2D(samp, tc).ba;
+}

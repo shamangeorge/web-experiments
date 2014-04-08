@@ -1,0 +1,11 @@
+#ifdef GL_ES
+	precision highp float;
+#endif
+uniform sampler2D samp;
+uniform float gdt;
+varying vec2 tc;
+void main(void) {
+	vec4 t = texture2D(samp, tc);
+	gl_FragColor.g = t.g+gdt;
+	gl_FragColor.rba = t.rba;
+}

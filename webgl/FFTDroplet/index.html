@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>FFT Fluid demo</title>
+    <link rel='stylesheet' type='text/css' href='//fonts.googleapis.com/css?family=Balthazar'>
+    <link rel='stylesheet' type='text/css' href='//fonts.googleapis.com/css?family=Mountains+of+Christmas:400,700'>
+    <link rel='stylesheet' type='text/css' href='//fonts.googleapis.com/css?family=Droid+Sans:400,700'>
+    <link rel="stylesheet" type='text/css' href='./css/main.css'>
+
+    <script type="text/javascript" src="./js/main.js"></script>
+</head>
+
+<body>
+    <header>
+        <h2>FFT-based Droplet Simulation</h2>
+    </header>
+    <section id='vis'>
+        <canvas id="c" width="512" height="512"></canvas>
+        <br/>Gravity:
+        <input id="gravity" type="number" size="3" value="100" onchange="setGravity()" />Viscosity:
+        <input id="viscosity" type="number" size="3" value="0" onchange="setViscosity()" />
+        <button id="toggle" onclick="toggleAnimation()">Start</button>
+        <button id="reset" onclick="reset()">Reset</button>
+        <p id="fps">FPS:NA</p>
+    </section>
+    <br/>
+    <p><a href="http://www.ibiblio.org/e-notes/webgl/gpu/droplet.htm">Original version by Demidov</a> and <a href="https://github.com/wildabc">wildabc</a>. Improved smooth animation using requestAnimationFrame.
+    </p>
+    <footer>
+        <h3>References</h3>
+        <ol>
+            <li><i>Jos Stam</i>: <a href="http://www.dgp.toronto.edu/people/stam/reality/Research/pub.html">A Simple Fluid Solver based on the FFT</a>.</li>
+            <li><i>Kenneth Moreland and Edward Angel</i>: <a href="http://www.sandia.gov/~kmorel/documents/fftgpu">The FFT on a GPU</a>.</li>
+            <li><i>Andrew Selle et al.</i>: <a href="http://physbam.stanford.edu/~aselle/papers/7/">An Unconditionally Stable MacCormack Method</a>.</li>
+        </ol>
+    </footer>
+    <script>
+    main();
+    </script>
+</body>
+
+</html>

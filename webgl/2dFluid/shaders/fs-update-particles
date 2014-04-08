@@ -1,0 +1,59 @@
+#ifdef GL_ES
+	precision highp float;
+#endif
+uniform sampler2D samp,grid,saved;
+uniform float dt,a,h;
+varying vec2 tc;
+
+vec3 velInterp(sampler2D s,vec2 p){
+	vec2 c = (p+vec2(1.))/2.;
+	vec3 vel = texture2D(s, c).rgb;
+	float hh = h/2.;	//half of h
+	////the velocity of the wall is zero
+	if(c.r<hh){
+		vel.r *= c.r/hh;
+	}
+	if(c.r>1.-hh){
+		vel.r *= (1.-c.r)/hh;
+	}
+	if(c.g<hh){
+		vel.g *= c.g/hh;
+	}
+	if(c.g>1.-hh){
+		vel.g *= (1.-c.g)/hh;
+	}
+	return vel;
+}
+
+vec4 move(vec4 posvel, float sdt){
+	vec2 pos = posvel.rg;
+	vec2 vel = posvel.ba;
+	float min = -1.+0.01*h;
+	float max = 1.-0.01*h;
+	vec2 midpos = clamp(pos + vel*sdt/2.,min,max);
+	vec3 midvel = velInterp(grid,midpos);
+	vec2 newpos = midvel.b==1. ? clamp(pos + midvel.rg*sdt,min,max) : clamp(pos + vel*sdt,min,max);
+	vec3 newvb = velInterp(grid,newpos);
+	vec2 newvel = newvb.b==1. ? newvb.rg : vel;
+	return vec4(newpos,newvel);
+}
+
+void main(void) {
+	vec2 pos = texture2D(samp, tc).rg;
+	vec2 vel = texture2D(samp, tc).ba;
+
+	vec2 gvel = velInterp(grid, pos).rg;
+	vec2 sgvel = velInterp(saved, pos).rg;
+	vel = a*gvel+(1.-a)*(vel+gvel-sgvel);
+
+	// better idea? for-loop doesnot work
+	vec4 pv = vec4(pos,gvel);
+	float sdt = dt/5.;
+	pv = move(pv,sdt);
+	pv = move(pv,sdt);
+	pv = move(pv,sdt);
+	pv = move(pv,sdt);
+	pv = move(pv,sdt);
+	vec2 newpos = pv.rg;
+	gl_FragColor = vec4(newpos,vel);
+}

@@ -1,0 +1,43 @@
+#ifdef GL_ES
+precision highp float;
+#endif
+
+/* System's clock, for running animations. */
+uniform float uTime;
+/* Position of camera. */
+uniform vec3 uPos;
+/* Lookat of camera. */
+uniform vec3 uDir;
+/* Scale factor */
+uniform float uScale;
+
+/* Coordinates being currently rendered. */
+varying vec2 vPosition;
+const float minX = 0.0;
+const float maxX = 4.0;
+const float minY = 0.0;
+const float maxY = 4.0;
+const int iterX = 14;
+const int iterY = 12;
+const float size = float((iterX-1) * (iterY-1));
+
+vec3 lyapunovExp( in vec2 ab) {
+    float le = 0.0;
+    float x = 0.5;
+    for (int j = 0; j < iterX; j++) {
+        for (int i = 0; i < iterY; i++) {
+            float r = i < 6 ? ab.y : ab.x;
+            le += log(1e-9 + abs(r * (1. - 2. * x)));
+            x = r * x * (1. - x);
+        }
+    }
+    le /= size;
+    return smoothstep(-0.15, -0.35, le) * vec3(.5 + .5 * sin(le * 4.), .5 + .5 * cos(le * 4.), .5 + .5 * sin(le * .5));
+}
+
+void main(void) {
+    vec2 topleft = vec2(minX, minY);
+    vec2 bottomright = vec2(maxX, maxY);
+    vec2 ab = ((topleft + bottomright) + vPosition.yx * (0.6 + 0.4 * cos(uTime * 0.1)) * (bottomright - topleft)) * .5;
+    gl_FragColor = vec4(lyapunovExp(ab), 1.);
+}

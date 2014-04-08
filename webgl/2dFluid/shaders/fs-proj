@@ -1,0 +1,23 @@
+#ifdef GL_ES
+	precision highp float;
+#endif
+uniform sampler2D psamp,samp;
+uniform float h;
+varying vec2 tc;
+void main(void) {
+	float pc = texture2D(psamp,tc).g;
+	float pl = texture2D(samp, vec2(tc.r-h,tc.g)).b>0. ? texture2D(psamp, vec2(tc.r-h,tc.g)).g : -pc;
+	float pr = texture2D(samp, vec2(tc.r+h,tc.g)).b>0. ? texture2D(psamp, vec2(tc.r+h,tc.g)).g : -pc;
+	float pd = texture2D(samp, vec2(tc.r,tc.g-h)).b>0. ? texture2D(psamp, vec2(tc.r,tc.g-h)).g : -pc;
+	float pu = texture2D(samp, vec2(tc.r,tc.g+h)).b>0. ? texture2D(psamp, vec2(tc.r,tc.g+h)).g : -pc;
+
+	//extrapolate the pressure (should I do this?)
+	pl = tc.r>h ? pl : 2.*pc-pr;
+	pr = tc.r<1.-h ? pr : 2.*pc-pl;
+	pd = tc.g>h ? pd : 2.*pc-pu;
+	pu = tc.g<1.-h ? pu : 2.*pc-pd;
+
+	gl_FragColor.r = texture2D(samp,tc).r-0.5*(pr-pl);
+	gl_FragColor.g = texture2D(samp,tc).g-0.5*(pu-pd);
+	gl_FragColor.ba = texture2D(samp,tc).ba;
+}
